@@ -10,7 +10,7 @@ import CoreData
 import UIKit
 
 class UserDatabase {
-
+    
     static let shared = UserDatabase()
 
     private init() {}
@@ -24,7 +24,16 @@ class UserDatabase {
         }
         return container
     }()
-
+    var currentBoardShape: BoardShape {
+            get {
+                let saved = UserDefaults.standard.string(forKey: "user_boardShape") ?? "cross"
+                return saved == "triangle" ? .triangle : .cross
+            }
+            set {
+                let shapeString = (newValue == .triangle) ? "triangle" : "cross"
+                UserDefaults.standard.set(shapeString, forKey: "user_boardShape")
+            }
+        }
     var context: NSManagedObjectContext {
         persistentContainer.viewContext
     }

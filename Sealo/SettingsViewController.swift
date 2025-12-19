@@ -8,6 +8,9 @@ class SettingsViewController: UIViewController {
     
     var onThemeChanged: ((Theme) -> Void)?
     var onThemeChangedBack: ((ThemeBack) -> Void)?
+    var onBoardShapeChanged: ((BoardShape) -> Void)?
+    var onClose: (() -> Void)?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -19,7 +22,6 @@ class SettingsViewController: UIViewController {
         panel.layer.cornerRadius = 30
         panel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(panel)
-        updatePanelTheme()
         
         NSLayoutConstraint.activate([
             panel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -31,7 +33,7 @@ class SettingsViewController: UIViewController {
         let title = UILabel()
         title.text = "Настройки"
         title.font = UIFont(name: "AvenirNext-Bold", size: 34)
-        title.textColor = isDarkTheme ? .black : .white
+        title.textColor = .systemCyan
         title.translatesAutoresizingMaskIntoConstraints = false
         panel.addSubview(title)
         NSLayoutConstraint.activate([
@@ -40,9 +42,9 @@ class SettingsViewController: UIViewController {
         ])
         
         let buttons = [
+            makeSettingsButton(title: "Выбрать уровень"),
             makeSettingsButton(title: "Изменить цвет фишек"),
             makeSettingsButton(title: "Изменить цвет фона"),
-            makeSettingsButton(title: "Звук"),
             makeSettingsButton(title: "Выйти в главное меню"),
             makeCloseButton()
         ]
@@ -57,22 +59,8 @@ class SettingsViewController: UIViewController {
             stack.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 30),
             stack.widthAnchor.constraint(equalTo: panel.widthAnchor, multiplier: 0.8)
         ])
-        
-        /*let closeBtn = makeCloseButton()
-        closeBtn.translatesAutoresizingMaskIntoConstraints = false
-        panel.addSubview(closeBtn)
-        NSLayoutConstraint.activate([
-            closeBtn.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -24),
-            closeBtn.centerXAnchor.constraint(equalTo: panel.centerXAnchor),
-            closeBtn.widthAnchor.constraint(equalTo: panel.widthAnchor, multiplier: 0.6),
-            closeBtn.heightAnchor.constraint(equalToConstant: 52)
-        ])*/
     }
-    
-    private func updatePanelTheme() {
-        panel.backgroundColor = isDarkTheme ? .white : UIColor(white: 0.15, alpha: 1.0)
-    }
-    
+
     private func makeSettingsButton(title: String) -> UIButton {
         let btn = UIButton(type: .system)
         btn.backgroundColor = UIColor(white: 0.9, alpha: 1.0)
@@ -98,29 +86,69 @@ class SettingsViewController: UIViewController {
     
     @objc private func settingTapped(_ sender: UIButton) {
         guard let title = sender.title(for: .normal) else { return }
-        if title == "Изменить цвет фишек" {
+        
+        switch title {
+        case "Изменить цвет фишек":
             isDarkTheme.toggle()
             onThemeChanged?(isDarkTheme ? .dark : .light)
-        }
-        if title == "Изменить цвет фона" {
+            
+        case "Изменить цвет фона":
             isDarkThemeBack.toggle()
             onThemeChangedBack?(isDarkThemeBack ? .darkBack : .lightBack)
-        }
-            else {
-            print("Setting pressed: \(title)")
-        }
-        if title == "Выйти в главное меню" {
-            let menuVC = MainMenuViewController(user: user)
-            menuVC.modalPresentationStyle = .fullScreen
-
-            view.window?.rootViewController = menuVC
+            
+        case "Выбрать уровень":
+            showLevelSelectionAlert()
+            
+        case "Выйти в главное меню":
+            // Закрываем меню настроек и переходим в главное меню
+            dismiss(animated: true) {
+                self.onClose?()
+            }
+        default:
+            break
         }
     }
     
+    private func showLevelSelectionAlert() {
+        let alert = UIAlertController(
+            title: "Выберите уровень",
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+        
+        let currentShape = UserDatabase.shared.currentBoardShape
+        
+        alert.addAction(UIAlertAction(
+            title: currentShape == .cross ? "✓ Крестовое поле" : "Крестовое поле",
+            style: .default
+        ) { [weak self] _ in
+            if currentShape != .cross {
+                self?.onBoardShapeChanged?(.cross)
+            }
+        })
+        
+        alert.addAction(UIAlertAction(
+            title: currentShape == .triangle ? "✓ Треугольное поле" : "Треугольное поле",
+            style: .default
+        ) { [weak self] _ in
+            if currentShape != .triangle {
+                self?.onBoardShapeChanged?(.triangle)
+            }
+        })
+        
+        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel))
+        
+        if let popoverController = alert.popoverPresentationController {
+            popoverController.sourceView = view
+            popoverController.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popoverController.permittedArrowDirections = []
+        }
+        
+        present(alert, animated: true)
+    }
+    
     @objc private func closeTapped() {
-        dismiss(animated: true, completion: nil)
+        dismiss(animated: true)
     }
 }
-
-
 

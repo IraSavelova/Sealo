@@ -18,158 +18,310 @@ enum ThemeBack {
     case darkBack
 }
 
+enum BoardShape {
+    case cross      // текущее поле
+    case triangle   // треугольное
+}
+
 class GameScene: SKScene {
     
+    // MARK: - Public Properties
     var user: UserData!
-    var theme: Theme = .dark {
-            didSet {
-                applyTheme()
-            }
-        }
-    var themeBack: ThemeBack = .darkBack {
-            didSet {
-                applyThemeBack()
-            }
-        }
-    private func applyThemeBack() {
-            
-        switch themeBack {
-                case .darkBack:
-            self.backgroundColor = .darkGray
-                case .lightBack:
-                    self.backgroundColor = .white
-                }
-            // Если Game Over открыто — меняем фон
-            if let dim = childNode(withName: "gameover_dim") as? SKSpriteNode {
-                dim.color = (themeBack == .darkBack) ? UIColor.black.withAlphaComponent(0.75) : UIColor.white.withAlphaComponent(0.6)
-            }
-        }
-    private func applyTheme() {
-            // Меняем цвет фона и фишек
-            for r in 0..<rows {
-                for c in 0..<cols {
-                    if let bg = background[r][c] {
-                        bg.color = (theme == .dark) ? .gray : .lightGray
-                    }
-                    if let peg = board[r][c] {
-                        peg.color = (theme == .dark) ? .blue : .systemPink
-                    }
-                }
-            }
-            
-            
-        }
-
-
+    var theme: Theme = .dark
+    var themeBack: ThemeBack = .darkBack
+    var boardShape: BoardShape = .cross
+    
+    // MARK: - Private Properties
     private var timerStarted = false
     private var lastElapsedTime: TimeInterval = 0
     private var levelTimerLabel: SKLabelNode!
     private var levelStartTime: TimeInterval?
     private var timerRunning = false
-
-        // Для хранения лучшего времени
-        private var bestTime: TimeInterval {
-            get { return user.bestLevelTime }
-            set {
-                user.bestLevelTime = newValue
-                UserDatabase.shared.save()
-            }
-        }
+    
     private let rows = 7
     private let cols = 7
     private var cellSize: CGFloat = 50
     
-    // фон (серые клетки)
-    private var background = [[SKSpriteNode?]]()
-    // фишки (синие)
-    private var board = [[SKSpriteNode?]]()
-    // логическая матрица наличия фишки
-    private var pegs = [[Bool]]()
+    // Массивы для хранения узлов
+    private var background: [[SKSpriteNode?]] = []
+    private var board: [[SKSpriteNode?]] = []
+    private var pegs: [[Bool]] = []
     
     private var selectedPeg: (row: Int, col: Int)?
     
-    override func didMove(to view: SKView) {
-            setupBoard()
-            setupTimerLabel()
-            applyTheme()
-            applyThemeBack()
+    // Вычисляемое свойство для лучшего времени
+    private var bestTime: TimeInterval {
+        get { return user.bestLevelTime }
+        set {
+            user.bestLevelTime = newValue
+            UserDatabase.shared.save()
         }
+    }
     
-    private func setupBoard() {
-        cellSize = min(size.width / CGFloat(cols), size.height / CGFloat(rows))
+    // MARK: - Lifecycle
+    override func didMove(to view: SKView) {
+        recreateBoard()
+    }
+    // В GameScene.swift добавьте эти методы:
+
+    // Метод для изменения темы фишек
+    func updatePegColors(newTheme: Theme) {
+        theme = newTheme
+        let pegColor: UIColor = (theme == .dark) ? .blue : .systemPink
         
+        // Меняем цвет всех существующих фишек
+        for r in 0..<board.count {
+            for c in 0..<board[r].count {
+                if let peg = board[r][c] {
+                    // Не меняем цвет выделенной фишки
+                    if selectedPeg?.row != r || selectedPeg?.col != c {
+                        peg.color = pegColor
+                    }
+                }
+            }
+        }
+    }
+
+    // Метод для изменения фона клеток
+    func updateBackgroundColors(newTheme: Theme) {
+        theme = newTheme
+        let bgColor: UIColor = (theme == .dark) ? .gray : .lightGray
+        
+        // Меняем цвет всех фоновых клеток
+        for r in 0..<background.count {
+            for c in 0..<background[r].count {
+                if let bg = background[r][c] {
+                    bg.color = bgColor
+                }
+            }
+        }
+    }
+
+    // Метод для изменения общего фона
+    func updateSceneBackground(newThemeBack: ThemeBack) {
+        themeBack = newThemeBack
+        self.backgroundColor = (themeBack == .darkBack) ? .darkGray : .white
+    }
+    // MARK: - Public Methods
+    func recreateBoard() {
+        // Очищаем все узлы
+        removeAllChildren()
+        
+        // Инициализируем массивы
         background = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         board = Array(repeating: Array(repeating: nil, count: cols), count: rows)
         pegs = Array(repeating: Array(repeating: false, count: cols), count: rows)
         
-        let startX = size.width/2 - CGFloat(cols)/2 * cellSize + cellSize/2
-        let startY = size.height/2 - CGFloat(rows)/2 * cellSize + cellSize/2
+        // Устанавливаем фон
+        applyBackgroundTheme()
+        
+        // Создаем доску
+        createBoard()
+        
+        // Настраиваем таймер
+        setupTimerLabel()
+    }
+    
+    func updateTheme(newTheme: Theme, newThemeBack: ThemeBack) {
+        theme = newTheme
+        themeBack = newThemeBack
+        recreateBoard()
+    }
+    
+    // MARK: - Board Creation
+    private func createBoard() {
+        switch boardShape {
+        case .cross:
+            createCrossBoard()
+        case .triangle:
+            createTriangleBoard()
+        }
+    }
+    
+    private func createCrossBoard() {
+        cellSize = min(size.width / CGFloat(cols),
+                       size.height / CGFloat(rows)) * 0.9
+        
+        let startX = size.width / 2 - CGFloat(cols) / 2 * cellSize + cellSize / 2
+        let startY = size.height / 2 - CGFloat(rows) / 2 * cellSize + cellSize / 2
         
         for r in 0..<rows {
             for c in 0..<cols {
-                // создаём форму креста (Peg Solitaire)
+                // Пропускаем углы для креста
                 if (r < 2 || r > 4) && (c < 2 || c > 4) { continue }
                 
-                let pos = CGPoint(x: startX + CGFloat(c) * cellSize,
-                                  y: startY + CGFloat(r) * cellSize)
+                let pos = CGPoint(
+                    x: startX + CGFloat(c) * cellSize,
+                    y: startY + CGFloat(r) * cellSize
+                )
                 
-                // 1) фон
-                let bgColor: UIColor = (theme == .dark) ? .gray : .lightGray
-                let bg = SKSpriteNode(color: bgColor,
-                                      size: CGSize(width: cellSize*0.82, height: cellSize*0.82))
-                bg.position = pos
-                bg.zPosition = 0
-                addChild(bg)
-                background[r][c] = bg
-                
-                // 2) фишка (кроме центра)
-                let pegColor: UIColor = (theme == .dark) ? .blue : .systemPink
-                let peg = SKSpriteNode(color: pegColor,
-                                       size: CGSize(width: cellSize*0.8, height: cellSize*0.8))
-                peg.position = pos
-                peg.zPosition = 1
-                addChild(peg)
-                
-                board[r][c] = peg
-                pegs[r][c] = true
+                createCell(row: r, col: c, position: pos)
             }
         }
         
-        // центр пустой
+        // Удаляем центральную фишку
         let center = rows / 2
-        board[center][center]?.removeFromParent()
-        board[center][center] = nil
-        pegs[center][center] = false
+        if isValidPosition(row: center, col: center) {
+            removePeg(row: center, col: center)
+        }
     }
     
+    private func createTriangleBoard() {
+        cellSize = min(size.width / CGFloat(rows),
+                       size.height / CGFloat(rows)) * 0.9
+        
+        let rowHeight = cellSize * 0.866
+        let triangleHeight = CGFloat(rows - 1) * rowHeight
+        let centerX = size.width / 2
+        let startY = size.height / 2 + triangleHeight / 2
+        
+        // Для треугольника используем разные размеры массивов
+        let triangleRows = rows
+        var triangleColsPerRow: [Int] = []
+        
+        // Сначала очищаем и создаем новые массивы под треугольник
+        background = []
+        board = []
+        pegs = []
+        
+        for r in 0..<triangleRows {
+            let colsInRow = r + 1
+            triangleColsPerRow.append(colsInRow)
+            
+            // Добавляем строки в массивы
+            background.append(Array(repeating: nil, count: colsInRow))
+            board.append(Array(repeating: nil, count: colsInRow))
+            pegs.append(Array(repeating: false, count: colsInRow))
+        }
+        
+        // Создаем ячейки
+        for r in 0..<triangleRows {
+            let colsInRow = r + 1
+            let rowWidth = CGFloat(colsInRow - 1) * cellSize
+            let startX = centerX - rowWidth / 2
+            
+            for c in 0..<colsInRow {
+                let pos = CGPoint(
+                    x: startX + CGFloat(c) * cellSize,
+                    y: startY - CGFloat(r) * rowHeight
+                )
+                
+                createCell(row: r, col: c, position: pos)
+            }
+        }
+        
+        // Удаляем центральную фишку для треугольника
+        let centerRow = triangleRows / 2 + 1
+        let centerCol = max(0, triangleColsPerRow[centerRow] / 2)
+        if isValidPosition(row: centerRow, col: centerCol) {
+            removePeg(row: centerRow, col: centerCol)
+        }
+    }
+    
+    private func createCell(row: Int, col: Int, position: CGPoint) {
+        // Проверяем границы массивов
+        guard isValidPosition(row: row, col: col) else { return }
+        
+        // Создаем фон
+        let bgColor: UIColor = (theme == .dark) ? .gray : .lightGray
+        let bg = SKSpriteNode(
+            color: bgColor,
+            size: CGSize(width: cellSize * 0.82, height: cellSize * 0.82)
+        )
+        bg.position = position
+        bg.zPosition = 0
+        addChild(bg)
+        background[row][col] = bg
+        
+        // Создаем фишку
+        let pegColor: UIColor = (theme == .dark) ? .blue : .systemPink
+        let peg = SKSpriteNode(
+            color: pegColor,
+            size: CGSize(width: cellSize * 0.8, height: cellSize * 0.8)
+        )
+        peg.position = position
+        peg.zPosition = 1
+        addChild(peg)
+        
+        board[row][col] = peg
+        pegs[row][col] = true
+    }
+    
+    private func removePeg(row: Int, col: Int) {
+        guard isValidPosition(row: row, col: col) else { return }
+        
+        board[row][col]?.removeFromParent()
+        board[row][col] = nil
+        pegs[row][col] = false
+    }
+    
+    // MARK: - Theme Methods
+    private func applyBackgroundTheme() {
+        switch themeBack {
+        case .darkBack:
+            self.backgroundColor = .darkGray
+        case .lightBack:
+            self.backgroundColor = .white
+        }
+    }
+    
+    // MARK: - Timer Methods
+    private func setupTimerLabel() {
+        levelTimerLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        levelTimerLabel.fontSize = 20
+        levelTimerLabel.fontColor = .systemCyan
+        levelTimerLabel.horizontalAlignmentMode = .left
+        levelTimerLabel.verticalAlignmentMode = .top
+        levelTimerLabel.position = CGPoint(x: 16, y: size.height - 16)
+        levelTimerLabel.zPosition = 100
+        addChild(levelTimerLabel)
+        levelTimerLabel.text = "Время: 0.0s"
+    }
+    
+    override func update(_ currentTime: TimeInterval) {
+        if !timerStarted {
+            startLevelTimer(currentTime: currentTime)
+            timerStarted = true
+        }
+        
+        guard timerRunning, let start = levelStartTime else { return }
+        
+        let elapsed = currentTime - start
+        lastElapsedTime = elapsed
+        
+        levelTimerLabel.text = String(format: "Время: %.1f s", elapsed)
+    }
+    
+    private func startLevelTimer(currentTime: TimeInterval) {
+        levelStartTime = currentTime
+        timerRunning = true
+    }
+    
+    private func stopLevelTimer() {
+        timerRunning = false
+    }
+    
+    // MARK: - Touch Handling
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: self)
         
-        // если нажали кнопку рестарта
+        // Проверяем нажатие на кнопку рестарта
         if let node = self.atPoint(location) as? SKLabelNode,
            node.name == "restart_button" {
             restartGame()
             return
         }
         
-        // если окно Game Over активно — другие нажатия игнорируем
+        // Игнорируем другие нажатия если Game Over открыто
         if childNode(withName: "gameover_dim") != nil {
             return
         }
-
-        // обычная логика
+        
+        // Обработка обычного нажатия
         handleTouch(at: location)
     }
-
-    private func restartGame() {
-        let newScene = GameScene(size: self.size)
-        newScene.scaleMode = self.scaleMode
-        
-        let transition = SKTransition.fade(withDuration: 0.4)
-        self.view?.presentScene(newScene, transition: transition)
-    }
-
+    
     private func handleTouch(at point: CGPoint) {
         guard let (row, col) = nodeAtPoint(point) else { return }
         
@@ -178,14 +330,17 @@ class GameScene: SKScene {
                 movePeg(from: selected, to: (row, col))
             }
             
-            // снимаем подсветку
-            if let selPeg = board[selected.row][selected.col] {
+            // Снимаем подсветку
+            if isValidPosition(row: selected.row, col: selected.col),
+               let selPeg = board[selected.row][selected.col] {
                 selPeg.color = (theme == .dark) ? .blue : .systemPink
             }
             
             selectedPeg = nil
         } else {
-            if pegs[row][col], let peg = board[row][col] {
+            if isValidPosition(row: row, col: col),
+               pegs[row][col],
+               let peg = board[row][col] {
                 selectedPeg = (row, col)
                 peg.color = .green
             }
@@ -193,13 +348,12 @@ class GameScene: SKScene {
     }
     
     private func nodeAtPoint(_ point: CGPoint) -> (Int, Int)? {
-        for r in 0..<rows {
-            for c in 0..<cols {
-                if background[r][c] == nil { continue }
-                if let peg = board[r][c], peg.contains(point) {
+        for r in 0..<background.count {
+            for c in 0..<background[r].count {
+                if let bg = background[r][c], bg.contains(point) {
                     return (r, c)
                 }
-                if let bg = background[r][c], bg.contains(point) {
+                if let peg = board[r][c], peg.contains(point) {
                     return (r, c)
                 }
             }
@@ -207,22 +361,45 @@ class GameScene: SKScene {
         return nil
     }
     
+    // MARK: - Game Logic
     private func canMove(from: (Int, Int), to: (Int, Int)) -> Bool {
+        // Проверяем границы
+        guard isValidPosition(row: to.0, col: to.1),
+              isValidPosition(row: from.0, col: from.1) else { return false }
+        
+        // Проверяем, что целевая ячейка существует и пуста
+        if background[to.0][to.1] == nil { return false }
+        if pegs[to.0][to.1] { return false }
+        
         let dr = to.0 - from.0
         let dc = to.1 - from.1
         
-        if background[to.0][to.1] == nil { return false }
-        
-        // вертикально через одну
-        if abs(dr) == 2 && dc == 0 {
-            let mid = (from.0 + dr/2, from.1)
-            return pegs[mid.0][mid.1] && !pegs[to.0][to.1]
-        }
-        
-        // горизонтально через одну
-        if abs(dc) == 2 && dr == 0 {
-            let mid = (from.0, from.1 + dc/2)
-            return pegs[mid.0][mid.1] && !pegs[to.0][to.1]
+        switch boardShape {
+        case .cross:
+            // Вертикальный прыжок
+            if abs(dr) == 2 && dc == 0 {
+                let mid = (from.0 + dr/2, from.1)
+                return isValidPosition(row: mid.0, col: mid.1) && pegs[mid.0][mid.1]
+            }
+            
+            // Горизонтальный прыжок
+            if abs(dc) == 2 && dr == 0 {
+                let mid = (from.0, from.1 + dc/2)
+                return isValidPosition(row: mid.0, col: mid.1) && pegs[mid.0][mid.1]
+            }
+            
+        case .triangle:
+            // 6 направлений для треугольника
+            let validMoves = [
+                (-2, 0), (2, 0),
+                (0, -2), (0, 2),
+                (-2, -2), (2, 2)
+            ]
+            
+            if validMoves.contains(where: { $0.0 == dr && $0.1 == dc }) {
+                let mid = (from.0 + dr/2, from.1 + dc/2)
+                return isValidPosition(row: mid.0, col: mid.1) && pegs[mid.0][mid.1]
+            }
         }
         
         return false
@@ -231,23 +408,24 @@ class GameScene: SKScene {
     private func movePeg(from: (Int, Int), to: (Int, Int)) {
         let mid = ((from.0 + to.0)/2, (from.1 + to.1)/2)
         
-        // 1) удаляем среднюю фишку
-        if let midPeg = board[mid.0][mid.1] {
+        // Удаляем среднюю фишку
+        if isValidPosition(row: mid.0, col: mid.1),
+           let midPeg = board[mid.0][mid.1] {
             midPeg.removeFromParent()
             board[mid.0][mid.1] = nil
             pegs[mid.0][mid.1] = false
         }
         
-        // 2) фишка, которая двигается
-        guard let peg = board[from.0][from.1] else { return }
-        
-        // 3) целевая позиция — позиция фона
-        guard let bgTarget = background[to.0][to.1] else { return }
+        // Двигаем фишку
+        guard isValidPosition(row: from.0, col: from.1),
+              let peg = board[from.0][from.1],
+              isValidPosition(row: to.0, col: to.1),
+              let bgTarget = background[to.0][to.1] else { return }
         
         let moveAction = SKAction.move(to: bgTarget.position, duration: 0.18)
         peg.run(moveAction)
         
-        // 4) обновляем логику
+        // Обновляем логику
         board[from.0][from.1] = nil
         pegs[from.0][from.1] = false
         
@@ -255,7 +433,7 @@ class GameScene: SKScene {
         pegs[to.0][to.1] = true
         
         peg.color = (theme == .dark) ? .blue : .systemPink
-        peg.zPosition = 1
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             if self.checkWinCondition() {
                 self.showWinWindow()
@@ -264,10 +442,11 @@ class GameScene: SKScene {
             }
         }
     }
+    
     private func checkWinCondition() -> Bool {
         var pegCount = 0
-        for r in 0..<rows {
-            for c in 0..<cols {
+        for r in 0..<pegs.count {
+            for c in 0..<pegs[r].count {
                 if pegs[r][c] {
                     pegCount += 1
                 }
@@ -277,19 +456,23 @@ class GameScene: SKScene {
     }
     
     private func anyMovesAvailable() -> Bool {
-        for r in 0..<rows {
-            for c in 0..<cols {
+        for r in 0..<pegs.count {
+            for c in 0..<pegs[r].count {
+                if !pegs[r][c] { continue }
+                if !isValidPosition(row: r, col: c) || background[r][c] == nil { continue }
                 
-                if !pegs[r][c] { continue } // если фишки нет – пропускаем
-                if background[r][c] == nil { continue }
+                let dirs: [(Int, Int)]
                 
-                // возможные направления: вверх, вниз, влево, вправо
-                let dirs = [
-                    (-2, 0),
-                    (2, 0),
-                    (0, -2),
-                    (0, 2)
-                ]
+                switch boardShape {
+                case .cross:
+                    dirs = [(-2, 0), (2, 0), (0, -2), (0, 2)]
+                case .triangle:
+                    dirs = [
+                        (-2, 0), (2, 0),
+                        (0, -2), (0, 2),
+                        (-2, -2), (2, 2)
+                    ]
+                }
                 
                 for dir in dirs {
                     let r2 = r + dir.0
@@ -297,12 +480,13 @@ class GameScene: SKScene {
                     let rMid = r + dir.0/2
                     let cMid = c + dir.1/2
                     
-                    // проверяем выход за пределы
-                    if r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols { continue }
+                    // Проверяем границы
+                    guard isValidPosition(row: r2, col: c2),
+                          isValidPosition(row: rMid, col: cMid) else { continue }
+                    
                     if background[r2][c2] == nil { continue }
                     
-                    // проверка: есть фишка → есть фишка для прыжка → пусто куда прыгать
-                    if pegs[rMid][cMid] == true && pegs[r2][c2] == false {
+                    if pegs[rMid][cMid] && !pegs[r2][c2] {
                         return true
                     }
                 }
@@ -311,56 +495,44 @@ class GameScene: SKScene {
         
         return false
     }
-    private func setupTimerLabel() {
-            levelTimerLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-            levelTimerLabel.fontSize = 20
-            levelTimerLabel.fontColor = .white
-            levelTimerLabel.horizontalAlignmentMode = .left
-            levelTimerLabel.verticalAlignmentMode = .top
-            levelTimerLabel.position = CGPoint(x: 16, y: size.height - 16)
-            levelTimerLabel.zPosition = 100
-            addChild(levelTimerLabel)
-            levelTimerLabel.text = "Время: 0.0s"
-        }
-    override func update(_ currentTime: TimeInterval) {
-        if !timerStarted {
-            startLevelTimer(currentTime: currentTime)
-            timerStarted = true
-        }
-
-        guard timerRunning, let start = levelStartTime else { return }
-
-        let elapsed = currentTime - start
-        lastElapsedTime = elapsed   // ← ВАЖНО
-
-        levelTimerLabel.text = String(format: "Время: %.1f s", elapsed)
-    }
-
     
-    private func startLevelTimer(currentTime: TimeInterval) {
-        levelStartTime = currentTime
-        timerRunning = true
-    }
-
-    private func stopLevelTimer() {
-            timerRunning = false
+    // MARK: - Helper Methods
+    private func isValidPosition(row: Int, col: Int) -> Bool {
+        switch boardShape {
+        case .cross:
+            return row >= 0 && row < rows && col >= 0 && col < cols
+        case .triangle:
+            return row >= 0 && row < pegs.count && col >= 0 && col < pegs[row].count
         }
+    }
+    
+    private func restartGame() {
+        let newScene = GameScene(size: self.size)
+        newScene.scaleMode = self.scaleMode
+        newScene.user = user
+        newScene.boardShape = boardShape
+        newScene.theme = theme
+        newScene.themeBack = themeBack
+        
+        let transition = SKTransition.fade(withDuration: 0.4)
+        self.view?.presentScene(newScene, transition: transition)
+    }
     
     private func gameOver() {
         stopLevelTimer()
         showGameOverWindow()
     }
-
+    
+    // MARK: - UI Windows
     private func showGameOverWindow() {
         // Затемняющий фон
-
         let dim = SKSpriteNode(color: UIColor.black.withAlphaComponent(0.75), size: size)
         dim.position = CGPoint(x: size.width/2, y: size.height/2)
         dim.zPosition = 50
         dim.name = "gameover_dim"
         addChild(dim)
         
-        // Белая панель (карточка)
+        // Панель
         let panelSize = CGSize(width: size.width * 0.75, height: size.height * 0.36)
         let panel = SKShapeNode(rectOf: panelSize, cornerRadius: 28)
         panel.fillColor = .white
@@ -370,7 +542,7 @@ class GameScene: SKScene {
         panel.name = "gameover_panel"
         addChild(panel)
         
-        // GAME OVER текст
+        // Текст
         let label = SKLabelNode(text: "GAME OVER")
         label.fontSize = 45
         label.fontColor = .black
@@ -381,7 +553,7 @@ class GameScene: SKScene {
         label.zPosition = 52
         panel.addChild(label)
         
-        // Кнопка (фоном прямоугольник)
+        // Кнопка
         let buttonWidth = panelSize.width * 0.62
         let buttonHeight: CGFloat = 56
         let button = SKShapeNode(rectOf: CGSize(width: buttonWidth, height: buttonHeight), cornerRadius: 14)
@@ -391,8 +563,7 @@ class GameScene: SKScene {
         button.name = "restart_button_bg"
         button.position = CGPoint(x: 0, y: -panelSize.height * 0.20)
         panel.addChild(button)
-
-        // Текст на кнопке
+        
         let btnLabel = SKLabelNode(text: "Начать новую игру")
         btnLabel.fontSize = 20
         btnLabel.fontColor = .black
@@ -404,24 +575,26 @@ class GameScene: SKScene {
         btnLabel.name = "restart_button"
         button.addChild(btnLabel)
     }
+    
     private func showWinWindow() {
-        // Затемняющий фон
         stopLevelTimer()
-
+        
+        // Сохраняем лучшее время
         if let start = levelStartTime {
             let elapsed = lastElapsedTime
             if bestTime == 0 || elapsed < bestTime {
                 bestTime = elapsed
             }
         }
-
+        
+        // Затемняющий фон
         let dim = SKSpriteNode(color: UIColor.black.withAlphaComponent(0.75), size: size)
         dim.position = CGPoint(x: size.width/2, y: size.height/2)
         dim.zPosition = 50
         dim.name = "win_dim"
         addChild(dim)
         
-        // Белая панель
+        // Панель
         let panelSize = CGSize(width: size.width * 0.75, height: size.height * 0.36)
         let panel = SKShapeNode(rectOf: panelSize, cornerRadius: 28)
         panel.fillColor = .white
@@ -431,7 +604,7 @@ class GameScene: SKScene {
         panel.name = "win_panel"
         addChild(panel)
         
-        // WIN текст
+        // Текст
         let label = SKLabelNode(text: "YOU WIN!")
         label.fontSize = 45
         label.fontColor = .black
@@ -442,7 +615,18 @@ class GameScene: SKScene {
         label.zPosition = 52
         panel.addChild(label)
         
-        // Кнопка "Новая игра"
+        // Время
+        let timeLabel = SKLabelNode(text: String(format: "Время: %.1f s", lastElapsedTime))
+        timeLabel.fontSize = 20
+        timeLabel.fontColor = .darkGray
+        timeLabel.horizontalAlignmentMode = .center
+        timeLabel.verticalAlignmentMode = .center
+        timeLabel.fontName = "AvenirNext-Medium"
+        timeLabel.position = CGPoint(x: 0, y: 0)
+        timeLabel.zPosition = 52
+        panel.addChild(timeLabel)
+        
+        // Кнопка
         let buttonWidth = panelSize.width * 0.62
         let buttonHeight: CGFloat = 56
         let button = SKShapeNode(rectOf: CGSize(width: buttonWidth, height: buttonHeight), cornerRadius: 14)
@@ -450,7 +634,7 @@ class GameScene: SKScene {
         button.strokeColor = UIColor(white: 0.75, alpha: 1.0)
         button.zPosition = 52
         button.name = "restart_button_bg"
-        button.position = CGPoint(x: 0, y: -panelSize.height * 0.20)
+        button.position = CGPoint(x: 0, y: -panelSize.height * 0.25)
         panel.addChild(button)
         
         let btnLabel = SKLabelNode(text: "Начать новую игру")
@@ -464,6 +648,5 @@ class GameScene: SKScene {
         btnLabel.name = "restart_button"
         button.addChild(btnLabel)
     }
-
 }
 

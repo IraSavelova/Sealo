@@ -3,6 +3,7 @@
     <entity name="UserData" representedClassName="UserData" syncable="YES" codeGenerationType="class">
         <attribute name="balance" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="bestLevelTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="boardShape" optional="YES" attributeType="String"/>
         <attribute name="dailyStreak" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="lastDailyPrizeDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lastFortuneDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

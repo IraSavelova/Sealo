@@ -49,7 +49,7 @@ class FortuneScene: SKScene {
         balanceLabel.fontName = "AvenirNext-Bold"
         balanceLabel.fontSize = 32
         balanceLabel.fontColor = .yellow
-        balanceLabel.position = CGPoint(x: size.width/2, y: size.height - 80)
+        balanceLabel.position = CGPoint(x: size.width/2, y: size.height - 180)
         addChild(balanceLabel)
         updateBalanceLabel()
     }
@@ -96,15 +96,15 @@ class FortuneScene: SKScene {
     
     // MARK: - Exit Button
     private func setupExitButton() {
-        exitButton = SKShapeNode(rectOf: CGSize(width: 100, height: 50), cornerRadius: 12)
-        exitButton.fillColor = .systemRed
+        exitButton = SKShapeNode(rectOf: CGSize(width: 100, height: 40), cornerRadius: 12)
+        exitButton.fillColor = .systemGreen
         exitButton.strokeColor = .clear
-        exitButton.position = CGPoint(x: size.width - 80, y: size.height - 50)
+        exitButton.position = CGPoint(x: size.width - 370, y: size.height - 80)
         exitButton.name = "exitButton"
         addChild(exitButton)
         
-        exitLabel = SKLabelNode(text: "ВЫЙТИ")
-        exitLabel.fontName = "AvenirNext-Bold"
+        exitLabel = SKLabelNode(text: "← Назад")
+        exitLabel.fontName = "AvenirNext-Medium"
         exitLabel.fontSize = 18
         exitLabel.fontColor = .white
         exitLabel.verticalAlignmentMode = .center

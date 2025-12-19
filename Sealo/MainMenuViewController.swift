@@ -43,12 +43,14 @@ class MainMenuViewController: UIViewController {
         let buttonTitles = [
             "Начать новую игру",
             "Достижения",
-            "Настройки",
+            "Правила игры",
             "Магазин",
             "Получить ежедневный приз",
             "Игра фортуна",
             "Пройти обучение",
-            "Профиль"
+            "Профиль",
+            "Челленджи",
+            "Создать свой уровень"
         ]
 
         var buttons = [UIButton]()
@@ -81,7 +83,7 @@ class MainMenuViewController: UIViewController {
         btn.addTarget(self, action: #selector(buttonTapped(_:)), for: .touchUpInside)
         return btn
     }
-
+    
     @objc private func buttonTapped(_ sender: UIButton) {
         guard let title = sender.title(for: .normal) else { return }
 
@@ -91,15 +93,14 @@ class MainMenuViewController: UIViewController {
             gameVC.user = user
             gameVC.modalPresentationStyle = .fullScreen
             present(gameVC, animated: true)
-        case "Настройки":
-            let settingsVC = SettingsViewController()
-            settingsVC.user = user
-            settingsVC.modalPresentationStyle = .overFullScreen
-            present(settingsVC, animated: true)
         case "Пройти обучение":
             let tutorialVC = TutorialViewController()
             tutorialVC.modalPresentationStyle = .overFullScreen
             present(tutorialVC, animated: true, completion: nil)
+        case "Создать свой уровень":
+            let editorVC = LevelEditorViewController()
+                editorVC.modalPresentationStyle = .fullScreen
+                present(editorVC, animated: true)
         case "Игра фортуна":
             let skVC = UIViewController()
             skVC.modalPresentationStyle = .fullScreen
@@ -127,6 +128,10 @@ class MainMenuViewController: UIViewController {
             let prizVC = DailyPrizeViewController(user:user)
             prizVC.modalPresentationStyle = .overFullScreen
             present(prizVC, animated: true)
+        case "Правила игры":
+            let rulesVC = RulesViewController()
+                rulesVC.modalPresentationStyle = .fullScreen
+                present(rulesVC, animated: true)
         case "Магазин":
             let shopVC = ShopViewController(user:user)
             shopVC.modalPresentationStyle = .overFullScreen
@@ -139,6 +144,10 @@ class MainMenuViewController: UIViewController {
             let achievementsVC = LeaderboardViewController()
                 achievementsVC.modalPresentationStyle = .overFullScreen
                 present(achievementsVC, animated: true)
+        case "Челленджи":
+            let challengesVC = ChallengesViewController()
+                challengesVC.modalPresentationStyle = .fullScreen
+                present(challengesVC, animated: true)
         default:
             let alert = UIAlertController(title: title, message: "Эта функция пока не реализована.", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))

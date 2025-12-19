@@ -1,10 +1,3 @@
-//
-//  LeaderboardViewController.swift
-//  Sealo
-//
-//  Created by Ирина on 19.12.2025.
-//
-
 import UIKit
 import CoreData
 
@@ -12,12 +5,13 @@ final class LeaderboardViewController: UIViewController {
 
     private let tableView = UITableView()
     private var users: [UserData] = []
+    private let backButton = UIButton(type: .system) // Добавлена кнопка назад
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         view.backgroundColor = .systemBackground
-        title = "Рейтинг игроков"
+        setupBackButton() // Настраиваем кнопку назад
         setupTableView()
         loadUsers()
     }
@@ -40,6 +34,34 @@ final class LeaderboardViewController: UIViewController {
 
     // MARK: - UI
 
+    private func setupBackButton() {
+        // Кнопка назад
+        backButton.setTitle("← Назад", for: .normal)
+        backButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        backButton.setTitleColor(.systemBlue, for: .normal)
+        backButton.addTarget(self, action: #selector(backTapped), for: .touchUpInside)
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(backButton)
+        
+        NSLayoutConstraint.activate([
+            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20)
+        ])
+        
+        // Заголовок
+        let titleLabel = UILabel()
+        titleLabel.text = "Рейтинг игроков"
+        titleLabel.font = UIFont.boldSystemFont(ofSize: 20)
+        titleLabel.textColor = .label
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+        
+        NSLayoutConstraint.activate([
+            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: backButton.centerYAnchor)
+        ])
+    }
+
     private func setupTableView() {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.register(LeaderboardCell.self, forCellReuseIdentifier: "LeaderboardCell")
@@ -50,11 +72,15 @@ final class LeaderboardViewController: UIViewController {
         view.addSubview(tableView)
 
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            tableView.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 20),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+    }
+    
+    @objc private func backTapped() {
+        dismiss(animated: true)
     }
 }
 
@@ -82,30 +108,7 @@ extension LeaderboardViewController: UITableViewDataSource {
             username: user.username ?? "Без имени",
             bestTime: user.bestLevelTime
         )
-        setupCloseButton()
         return cell
-    }
-    private func setupCloseButton() {
-        let button = UIButton(type: .system)
-        button.setImage(UIImage(systemName: "xmark"), for: .normal)
-        button.tintColor = .label
-        button.backgroundColor = UIColor.secondarySystemBackground
-        button.layer.cornerRadius = 18
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        button.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-
-        view.addSubview(button)
-
-        NSLayoutConstraint.activate([
-            button.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            button.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            button.widthAnchor.constraint(equalToConstant: 36),
-            button.heightAnchor.constraint(equalToConstant: 36)
-        ])
-    }
-    @objc private func closeTapped() {
-        dismiss(animated: true)
     }
 }
 

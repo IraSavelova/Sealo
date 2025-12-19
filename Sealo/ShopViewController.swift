@@ -253,7 +253,7 @@ class ShopItemCell: UICollectionViewCell {
         ])
 
         buyButton.setTitle("Купить", for: .normal)
-        buyButton.titleLabel?.font = .boldSystemFont(ofSize: 16)
+        buyButton.titleLabel?.font = .boldSystemFont(ofSize: 12)
         buyButton.backgroundColor = .systemBlue
         buyButton.setTitleColor(.white, for: .normal)
         buyButton.layer.cornerRadius = 12
@@ -263,8 +263,8 @@ class ShopItemCell: UICollectionViewCell {
         NSLayoutConstraint.activate([
             buyButton.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
             buyButton.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            buyButton.widthAnchor.constraint(equalToConstant: 80),
-            buyButton.heightAnchor.constraint(equalToConstant: 36)
+            buyButton.widthAnchor.constraint(equalToConstant: 68),
+            buyButton.heightAnchor.constraint(equalToConstant: 28)
         ])
     }
 
